@@ -1517,6 +1517,37 @@ async function loadFromGoogleSheets(force = false) {
         
         // Jalankan aplikasi saat halaman dimuat
         document.addEventListener('DOMContentLoaded', initApp);
+
+        // Fungsi debug untuk cek koneksi
+async function debugConnection() {
+    console.log('Testing connection to:', GOOGLE_SCRIPT_URL);
+    
+    try {
+        // Test 1: Cek apakah script berjalan
+        const testUrl = `${GOOGLE_SCRIPT_URL}?action=test&_=${Date.now()}`;
+        console.log('Test URL:', testUrl);
+        
+        const testResponse = await fetch(testUrl);
+        const testResult = await testResponse.json();
+        console.log('Test result:', testResult);
+        
+        // Test 2: Cek data di sheets
+        const loadUrl = `${GOOGLE_SCRIPT_URL}?action=load&month=${currentMonth}&year=${currentYear}&_=${Date.now()}`;
+        console.log('Load URL:', loadUrl);
+        
+        const loadResponse = await fetch(loadUrl);
+        const loadText = await loadResponse.text();
+        console.log('Load response:', loadText);
+        
+        return { testResult, loadText };
+    } catch (error) {
+        console.error('Debug error:', error);
+        return { error: error.toString() };
+    }
+}
+
+// Panggil fungsi debug di console
+// debugConnection();
     </script>
 </body>
 </html>
