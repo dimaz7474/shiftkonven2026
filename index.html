@@ -1135,78 +1135,65 @@ async function saveToGoogleSheets() {
             data: monthSchedule
         };
         
-        console.log('Mengirim data ke Google Sheets:', saveData);
-        
-        // Gunakan metode yang berbeda untuk menghindari CORS
-        const formData = new FormData();
-        formData.append('data', JSON.stringify(saveData));
-        
-        // Buat URL dengan parameter
-        const url = `${GOOGLE_SCRIPT_URL}?action=save&month=${currentMonth}&year=${currentYear}&data=${encodeURIComponent(JSON.stringify(monthSchedule))}`;
-        
-        // Coba metode pertama: fetch dengan mode 'no-cors'
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'no-cors', // Mode no-cors
-            cache: 'no-cache'
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(saveData)
         });
         
-        console.log('Request terkirim ke:', url);
+        const result = await response.json();
         
-        // Simpan ke localStorage sebagai backup
-        saveToLocalStorage();
-        
-        // Coba metode kedua: menggunakan iframe untuk bypass CORS
-        setTimeout(() => {
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = url;
-            document.body.appendChild(iframe);
+        if (result.success) {
+            const timeStr = new Date().toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            updateSyncStatus('success', `Tersimpan ${timeStr}`);
+            console.log('Berhasil disimpan ke Google Sheets:', result);
             
-            setTimeout(() => {
-                document.body.removeChild(iframe);
-            }, 3000);
-        }, 100);
-        
-        // Update status
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('id-ID', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            second: '2-digit'
-        });
-        updateSyncStatus('success', `Tersimpan ${timeStr}`);
-        
-        alert('Data berhasil dikirim ke Google Sheets!');
-        
-        // Refresh data dari Google Sheets setelah 2 detik
-        setTimeout(async () => {
-            await loadFromGoogleSheets(true); // Force reload
-        }, 2000);
+            // Simpan juga ke localStorage sebagai backup
+            saveToLocalStorage();
+        } else {
+            throw new Error(result.message || 'Gagal menyimpan');
+        }
         
     } catch (error) {
         console.error('Error saving to Google Sheets:', error);
-        
-        // Backup ke localStorage
-        saveToLocalStorage();
-        
+        saveToLocalStorage(); // Backup ke localStorage
         updateSyncStatus('error', 'Gagal, disimpan lokal');
-        alert('Gagal menyimpan ke Google Sheets. Data disimpan lokal.\n\nCoba gunakan tombol "Export CSV" untuk backup manual.');
+        alert('Gagal menyimpan ke cloud. Data disimpan lokal.');
     } finally {
         isSaving = false;
         hideLoading();
-        
-        // Reset status setelah 5 detik
-        setTimeout(() => {
-            if (lastSaveTime) {
-                const timeStr = lastSaveTime.toLocaleTimeString('id-ID', { 
-                    hour: '2-digit', 
-                    minute: '2-digit'
-                });
-                updateSyncStatus('success', `Disimpan ${timeStr}`);
-            }
-        }, 5000);
     }
+}
+
+
+// Fungsi untuk test koneksi ke Google Script
+async function testGoogleScriptConnection() {
+    try {
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=test`);
+        const result = await response.json();
+        console.log('Test connection:', result);
+        return result.success;
+    } catch (error) {
+        console.error('Test connection failed:', error);
+        return false;
+    }
+}
+
+// Panggil saat init app
+async function initApp() {
+    const isConnected = await testGoogleScriptConnection();
+    if (isConnected) {
+        updateSyncStatus('success', 'Terhubung ke Google Sheets');
+    } else {
+        updateSyncStatus('offline', 'Mode offline (gunakan localStorage)');
+    }
+    // ... sisa kode init
 }
         
         // Fungsi untuk memuat data dari Google Sheets
