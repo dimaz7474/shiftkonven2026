@@ -6,7 +6,6 @@
     <title>Jadwal Shift Pegawai 2026</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* CSS sama seperti sebelumnya */
         :root {
             --primary: #2c3e50;
             --secondary: #4a6491;
@@ -74,6 +73,17 @@
         .sheets-info {
             background-color: #e8f5e9;
             border: 1px solid #4CAF50;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-status {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
             border-radius: 6px;
             padding: 8px 12px;
             font-size: 0.8rem;
@@ -431,6 +441,105 @@
             100% { opacity: 1; }
         }
 
+        /* Notifications */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification-success {
+            background-color: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .notification-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .notification-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .notification-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .notification button {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        /* Settings Modal */
+        .settings-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .form-help a {
+            color: var(--info);
+            text-decoration: none;
+        }
+
+        .form-help a:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 1200px) {
             .main-content {
                 flex-direction: column;
@@ -471,6 +580,10 @@
                 <div class="sheets-info" id="sheets-info">
                     <i class="fas fa-check-circle" style="color: #4CAF50;"></i>
                     <span>Google Sheets: <strong>Terkonfigurasi</strong></span>
+                </div>
+                <div class="sync-status" id="sync-status" style="display: none;">
+                    <i class="fas fa-sync-alt"></i>
+                    <span id="sync-text">0 perubahan belum disinkronkan</span>
                 </div>
             </div>
         </header>
@@ -535,6 +648,10 @@
                 <i class="fas fa-calendar"></i> Generate Ulang
             </button>
             
+            <button class="btn btn-warning" id="sync-changes">
+                <i class="fas fa-sync-alt"></i> Sync Perubahan
+            </button>
+            
             <button class="btn btn-primary" id="save-to-sheets">
                 <i class="fas fa-save"></i> Simpan ke Google Sheets
             </button>
@@ -574,6 +691,34 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title"><i class="fas fa-cog"></i> Pengaturan Google Sheets</h2>
+            <p class="modal-text">Konfigurasi URL Google Apps Script untuk menyimpan data.</p>
+            
+            <div class="settings-form">
+                <div class="form-group">
+                    <label for="gas-url">Google Apps Script URL:</label>
+                    <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+                    <div class="form-help">
+                        Dapatkan dengan:<br>
+                        1. Buka Google Sheets<br>
+                        2. Extensions → Apps Script<br>
+                        3. Deploy sebagai Web App<br>
+                        4. Copy URL Web App
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button id="cancel-settings" class="modal-btn modal-btn-secondary">Batal</button>
+                <button id="test-connection" class="modal-btn modal-btn-secondary">Test Koneksi</button>
+                <button id="save-settings" class="modal-btn modal-btn-primary">Simpan Pengaturan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading overlay -->
     <div id="loading-overlay" class="modal-overlay" style="display: none; background-color: rgba(0,0,0,0.7);">
         <div class="modal-content" style="background-color: transparent; box-shadow: none; color: white; text-align: center;">
@@ -607,17 +752,26 @@
         let firstSwapShift = null;
         
         // ==================== KONFIGURASI GOOGLE APPS SCRIPT ====================
-        // SALIN URL WEB APP ANDA DI SINI
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyjV4sKHyACTABQryfkrTJ0IgNIwHpshx-KaAgt8AIsOZYAONgjPII3khqhQmomf1mz/exec';
+        // URL Google Apps Script Web App Anda - GANTI DENGAN URL ANDA
+        let GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-P6Aq2OLg8TtCbSphV6-PlmcOzC8pGHS4PaD5zwHTBf8eyPtsF__UktGcMyUR9NNL/exec';
+        
+        // Perubahan yang belum disinkronkan
+        let pendingChanges = [];
         
         // ==================== FUNGSI UTAMA ====================
         
-        // Cek konfigurasi
+        // Cek konfigurasi saat aplikasi dimulai
         function checkConfig() {
+            // Load URL dari localStorage jika ada
+            const savedUrl = localStorage.getItem('gasWebAppUrl');
+            if (savedUrl) {
+                GAS_WEB_APP_URL = savedUrl;
+            }
+            
             const statusElement = document.getElementById('storage-status');
             const infoElement = document.getElementById('sheets-info');
             
-            if (GAS_WEB_APP_URL && !GAS_WEB_APP_URL.includes('...')) {
+            if (GAS_WEB_APP_URL && GAS_WEB_APP_URL.includes('script.google.com')) {
                 statusElement.innerHTML = `<span class="status-indicator status-online"></span> Terhubung ke Google Sheets`;
                 infoElement.innerHTML = `
                     <i class="fas fa-check-circle" style="color: #4CAF50;"></i>
@@ -645,110 +799,296 @@
             document.getElementById('loading-overlay').style.display = 'none';
         }
         
-        // Save to Google Sheets via Google Apps Script
-        async function saveToGoogleSheets() {
-            if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes('...')) {
-                alert('Harap konfigurasi URL Google Apps Script terlebih dahulu.\n\n1. Buka Google Sheets\n2. Extensions → Apps Script\n3. Buat script dan deploy sebagai Web App\n4. Salin URL ke kode JavaScript');
-                return false;
-            }
+        // Show notification
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">&times;</button>
+            `;
             
+            document.body.appendChild(notification);
+            
+            // Auto remove after duration
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, duration);
+            
+            return notification;
+        }
+        
+        // Update sync status display
+        function updateSyncStatus() {
+            const syncStatus = document.getElementById('sync-status');
+            const syncText = document.getElementById('sync-text');
+            
+            if (pendingChanges.length > 0) {
+                syncStatus.style.display = 'flex';
+                syncText.textContent = `${pendingChanges.length} perubahan belum disinkronkan`;
+            } else {
+                syncStatus.style.display = 'none';
+            }
+        }
+        
+        // Save to Google Sheets via Form Submission (Workaround CORS)
+        async function saveToGoogleSheets() {
             showLoading('Menyimpan ke Google Sheets...');
             
             try {
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'saveAll',
-                        scheduleData: scheduleData
-                    })
-                });
+                // 1. Buat data untuk disimpan
+                const dataToSave = {
+                    action: 'saveAll',
+                    scheduleData: scheduleData,
+                    timestamp: new Date().toISOString(),
+                    month: currentMonth,
+                    year: currentYear,
+                    employees: employees.map(emp => emp.name)
+                };
                 
-                const result = await response.json();
+                // 2. Buat form untuk submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = GAS_WEB_APP_URL;
+                form.target = '_blank'; // Buka di tab baru
+                form.style.display = 'none';
                 
-                if (result.success) {
-                    // Simpan timestamp terakhir
+                // 3. Tambahkan input hidden dengan data
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'data';
+                input.value = JSON.stringify(dataToSave);
+                form.appendChild(input);
+                
+                // 4. Tambahkan form ke body dan submit
+                document.body.appendChild(form);
+                form.submit();
+                
+                // 5. Hapus form setelah submit
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                    hideLoading();
+                    
+                    // 6. Tampilkan instruksi
+                    showNotification(
+                        '✅ Data berhasil dikirim ke Google Sheets! Periksa tab baru yang terbuka.',
+                        'success'
+                    );
+                    
+                    // 7. Simpan timestamp terakhir
                     localStorage.setItem('lastSavedToSheets', new Date().toISOString());
                     
-                    hideLoading();
-                    alert('✅ Data berhasil disimpan ke Google Sheets!');
-                    return true;
-                } else {
-                    throw new Error(result.message || 'Gagal menyimpan');
-                }
+                    // 8. Clear pending changes karena sudah disimpan
+                    pendingChanges = [];
+                    localStorage.removeItem('pendingChanges');
+                    updateSyncStatus();
+                    
+                    showNotification('Semua perubahan telah disinkronkan ke Google Sheets.', 'success');
+                    
+                }, 1000);
+                
+                return true;
+                
             } catch (error) {
                 console.error('Gagal menyimpan ke Google Sheets:', error);
                 hideLoading();
-                alert(`❌ Gagal menyimpan ke Google Sheets:\n${error.message}\n\nData telah disimpan di localStorage.`);
+                
+                // Fallback: simpan ke localStorage
+                saveToLocalStorage();
+                
+                showNotification(
+                    '❌ Gagal menyimpan ke Google Sheets. Data disimpan di localStorage.',
+                    'error'
+                );
+                
                 return false;
             }
         }
         
-        // Load from Google Sheets via Google Apps Script
+        // Load from Google Sheets
         async function loadFromGoogleSheets() {
-            if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes('...')) {
-                alert('Harap konfigurasi URL Google Apps Script terlebih dahulu.\n\n1. Buka Google Sheets\n2. Extensions → Apps Script\n3. Buat script dan deploy sebagai Web App\n4. Salin URL ke kode JavaScript');
-                return false;
-            }
-            
             if (!confirm('Muat data dari Google Sheets? Data lokal akan diganti.')) {
                 return false;
             }
             
-            showLoading('Memuat dari Google Sheets...');
+            showLoading('Membuka Google Sheets...');
             
             try {
-                const response = await fetch(GAS_WEB_APP_URL + '?t=' + new Date().getTime()); // Cache busting
-                const result = await response.json();
+                // Buka URL untuk memuat data (GET request)
+                const loadUrl = GAS_WEB_APP_URL + '?action=loadAll&t=' + Date.now();
+                const loadWindow = window.open(loadUrl, '_blank');
                 
-                if (result.success && result.data) {
-                    scheduleData = result.data;
-                    saveToLocalStorage();
-                    renderSchedule();
-                    
+                // Beri instruksi kepada user
+                setTimeout(() => {
                     hideLoading();
-                    alert('✅ Data berhasil dimuat dari Google Sheets!');
-                    return true;
-                } else {
-                    throw new Error(result.message || 'Data tidak ditemukan');
-                }
+                    
+                    const jsonData = prompt(
+                        '📥 MENGAMBIL DATA DARI GOOGLE SHEETS\n\n' +
+                        'Langkah-langkah:\n' +
+                        '1. Tab baru telah terbuka dengan data JSON\n' +
+                        '2. Copy seluruh teks dari tab tersebut\n' +
+                        '3. Paste di sini:',
+                        ''
+                    );
+                    
+                    if (jsonData) {
+                        try {
+                            const result = JSON.parse(jsonData);
+                            if (result.success && result.data) {
+                                scheduleData = result.data;
+                                saveToLocalStorage();
+                                renderSchedule();
+                                
+                                // Clear pending changes
+                                pendingChanges = [];
+                                localStorage.removeItem('pendingChanges');
+                                updateSyncStatus();
+                                
+                                showNotification('✅ Data berhasil dimuat dari Google Sheets!', 'success');
+                            } else {
+                                throw new Error(result.message || 'Data tidak valid');
+                            }
+                        } catch (parseError) {
+                            showNotification('❌ Format JSON tidak valid: ' + parseError.message, 'error');
+                        }
+                    } else {
+                        showNotification('❌ Tidak ada data yang dimasukkan.', 'error');
+                    }
+                }, 2000);
+                
+                return true;
+                
             } catch (error) {
                 console.error('Gagal memuat dari Google Sheets:', error);
                 hideLoading();
-                alert(`❌ Gagal memuat dari Google Sheets:\n${error.message}\n\nMenggunakan data lokal.`);
+                showNotification('❌ Gagal memuat data: ' + error.message, 'error');
                 return false;
             }
         }
         
-        // Save single shift update
-        async function saveSingleShiftUpdate(employeeIndex, day, newShift) {
-            if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes('...')) {
-                // Jika GAS tidak dikonfigurasi, cukup simpan ke localStorage
+        // Sync pending changes to Google Sheets
+        async function syncPendingChanges() {
+            if (pendingChanges.length === 0) {
+                showNotification('Tidak ada perubahan yang perlu disinkronkan.', 'info');
                 return true;
             }
             
-            try {
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'updateShift',
-                        employeeIndex: employeeIndex,
-                        day: day,
-                        shift: newShift,
-                        month: currentMonth
-                    })
-                });
-                
-                const result = await response.json();
-                return result.success;
-            } catch (error) {
-                console.error('Gagal update shift ke Google Sheets:', error);
+            if (!confirm(`Sinkronkan ${pendingChanges.length} perubahan ke Google Sheets?`)) {
                 return false;
+            }
+            
+            showLoading('Menyinkronkan perubahan...');
+            
+            try {
+                // 1. Buat data untuk sync
+                const syncData = {
+                    action: 'syncChanges',
+                    changes: pendingChanges,
+                    timestamp: new Date().toISOString(),
+                    month: currentMonth
+                };
+                
+                // 2. Buat form untuk submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = GAS_WEB_APP_URL;
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                // 3. Tambahkan input hidden dengan data
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'data';
+                input.value = JSON.stringify(syncData);
+                form.appendChild(input);
+                
+                // 4. Tambahkan form ke body dan submit
+                document.body.appendChild(form);
+                form.submit();
+                
+                // 5. Hapus form setelah submit
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                    hideLoading();
+                    
+                    // 6. Tampilkan sukses
+                    showNotification(
+                        `✅ ${pendingChanges.length} perubahan telah dikirim ke Google Sheets!`,
+                        'success'
+                    );
+                    
+                    // 7. Clear pending changes
+                    pendingChanges = [];
+                    localStorage.removeItem('pendingChanges');
+                    updateSyncStatus();
+                    
+                }, 1000);
+                
+                return true;
+                
+            } catch (error) {
+                console.error('Gagal sync perubahan:', error);
+                hideLoading();
+                showNotification('❌ Gagal menyinkronkan perubahan.', 'error');
+                return false;
+            }
+        }
+        
+        // Save single shift change (add to pending changes)
+        function saveSingleShiftChange(employeeIndex, day, newShift) {
+            // Cari apakah sudah ada perubahan untuk shift ini
+            const existingIndex = pendingChanges.findIndex(change => 
+                change.employeeIndex === employeeIndex && 
+                change.day === day && 
+                change.month === currentMonth
+            );
+            
+            if (existingIndex !== -1) {
+                // Update existing change
+                pendingChanges[existingIndex].shift = newShift;
+                pendingChanges[existingIndex].timestamp = new Date().toISOString();
+            } else {
+                // Add new change
+                pendingChanges.push({
+                    employeeIndex: employeeIndex,
+                    day: day,
+                    shift: newShift,
+                    month: currentMonth,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('pendingChanges', JSON.stringify(pendingChanges));
+            
+            // Update display
+            updateSyncStatus();
+            
+            console.log(`Perubahan ditambahkan: ${pendingChanges.length} perubahan tertunda`);
+        }
+        
+        // Load pending changes from localStorage
+        function loadPendingChanges() {
+            const savedChanges = localStorage.getItem('pendingChanges');
+            if (savedChanges) {
+                try {
+                    pendingChanges = JSON.parse(savedChanges);
+                    console.log(`Memuat ${pendingChanges.length} perubahan yang tertunda`);
+                    updateSyncStatus();
+                    
+                    if (pendingChanges.length > 0) {
+                        showNotification(
+                            `Ada ${pendingChanges.length} perubahan yang belum disinkronkan ke Google Sheets.`,
+                            'warning'
+                        );
+                    }
+                } catch (error) {
+                    console.error('Gagal memuat perubahan tertunda:', error);
+                    pendingChanges = [];
+                }
             }
         }
         
@@ -992,26 +1332,25 @@
             updateSelectionInfo();
         }
         
-        async function swapShifts(shift1, shift2) {
+        function swapShifts(shift1, shift2) {
             const shift1Data = scheduleData[currentMonth][shift1.employee][shift1.day-1];
             const shift2Data = scheduleData[currentMonth][shift2.employee][shift2.day-1];
             
             scheduleData[currentMonth][shift1.employee][shift1.day-1] = shift2Data;
             scheduleData[currentMonth][shift2.employee][shift2.day-1] = shift1Data;
             
+            // Simpan perubahan
             saveToLocalStorage();
+            saveSingleShiftChange(shift1.employee, shift1.day, shift2Data);
+            saveSingleShiftChange(shift2.employee, shift2.day, shift1Data);
             
-            // Coba simpan ke Google Sheets
-            try {
-                await saveSingleShiftUpdate(shift1.employee, shift1.day, shift2Data);
-                await saveSingleShiftUpdate(shift2.employee, shift2.day, shift1Data);
-            } catch (error) {
-                console.error('Gagal sync ke Google Sheets:', error);
-            }
-            
+            // Render ulang
             renderSchedule();
             
-            alert(`Shift berhasil ditukar:\n${employees[shift1.employee].name} (${shift1.day} ${monthNames[currentMonth]}) ↔ ${employees[shift2.employee].name} (${shift2.day} ${monthNames[currentMonth]})`);
+            showNotification(
+                `Shift berhasil ditukar: ${employees[shift1.employee].name} (${shift1.day} ${monthNames[currentMonth]}) ↔ ${employees[shift2.employee].name} (${shift2.day} ${monthNames[currentMonth]})`,
+                'success'
+            );
         }
         
         function clearSelections() {
@@ -1036,7 +1375,7 @@
         
         function showUpdateModal() {
             if (!selectedShift) {
-                alert("Pilih shift terlebih dahulu dengan mengklik pada jadwal!");
+                showNotification("Pilih shift terlebih dahulu dengan mengklik pada jadwal!", "warning");
                 return;
             }
             
@@ -1055,93 +1394,99 @@
             });
         }
         
-        async function updateSelectedShift(newShift) {
+        function updateSelectedShift(newShift) {
             if (!selectedShift) return;
             
+            // Update data
             const oldShift = scheduleData[currentMonth][selectedShift.employee][selectedShift.day-1];
             scheduleData[currentMonth][selectedShift.employee][selectedShift.day-1] = newShift;
             
+            // Simpan perubahan
             saveToLocalStorage();
+            saveSingleShiftChange(selectedShift.employee, selectedShift.day, newShift);
             
-            // Coba simpan ke Google Sheets
-            const sheetsSuccess = await saveSingleShiftUpdate(
-                selectedShift.employee, 
-                selectedShift.day, 
-                newShift
-            );
-            
-            if (!sheetsSuccess) {
-                console.log('Shift diupdate hanya di localStorage');
-            }
-            
+            // Render ulang
             renderSchedule();
+            
+            // Tampilkan notifikasi
+            showNotification(
+                `Shift diperbarui: ${employees[selectedShift.employee].name} (${selectedShift.day} ${monthNames[currentMonth]}) dari ${getShiftName(oldShift)} menjadi ${getShiftName(newShift)}`,
+                'success'
+            );
             
             selectedShift = null;
             clearSelections();
             updateSelectionInfo();
         }
-//=====cors proxy========
-
-        // Tambahkan di bagian atas script
-const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-// atau https://api.codetabs.com/v1/proxy?quest=
-
-// Modifikasi fungsi saveToGoogleSheets
-async function saveToGoogleSheets() {
-    showLoading('Menyimpan ke Google Sheets...');
-    
-    try {
-        const proxyUrl = CORS_PROXY + GAS_WEB_APP_URL;
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                action: 'saveAll',
-                scheduleData: scheduleData
-            })
-        });
         
-        const result = await response.json();
+        // ==================== SETTINGS MODAL ====================
         
-        if (result.success) {
-            localStorage.setItem('lastSavedToSheets', new Date().toISOString());
-            hideLoading();
-            alert('✅ Data berhasil disimpan ke Google Sheets!');
-            return true;
-        } else {
-            throw new Error(result.message || 'Gagal menyimpan');
+        function showSettingsModal() {
+            document.getElementById('gas-url').value = GAS_WEB_APP_URL;
+            document.getElementById('settings-modal').style.display = 'flex';
         }
-    } catch (error) {
-        console.error('Gagal menyimpan ke Google Sheets:', error);
-        hideLoading();
         
-        // Fallback ke localStorage
-        saveToLocalStorage();
+        function testConnection() {
+            const url = document.getElementById('gas-url').value.trim();
+            
+            if (!url || !url.includes('script.google.com')) {
+                showNotification('Masukkan URL Google Apps Script yang valid.', 'error');
+                return;
+            }
+            
+            showLoading('Menguji koneksi...');
+            
+            // Buka URL di tab baru untuk test
+            const testWindow = window.open(url + '?action=test&t=' + Date.now(), '_blank');
+            
+            setTimeout(() => {
+                hideLoading();
+                showNotification(
+                    'URL dibuka di tab baru. Jika muncul pesan "Action not recognized", berarti koneksi berhasil.',
+                    'info'
+                );
+            }, 2000);
+        }
         
-        alert(`❌ Gagal menyimpan ke Google Sheets:\n${error.message}\n\nData telah disimpan di localStorage.`);
-        return false;
-    }
-}
+        function saveSettings() {
+            const url = document.getElementById('gas-url').value.trim();
+            
+            if (!url || !url.includes('script.google.com')) {
+                showNotification('Masukkan URL Google Apps Script yang valid.', 'error');
+                return;
+            }
+            
+            GAS_WEB_APP_URL = url;
+            localStorage.setItem('gasWebAppUrl', url);
+            
+            document.getElementById('settings-modal').style.display = 'none';
+            checkConfig();
+            
+            showNotification('Pengaturan berhasil disimpan!', 'success');
+        }
+        
         // ==================== INISIALISASI ====================
         
         function initApp() {
             // Cek konfigurasi
             checkConfig();
             
-            // Load data
+            // Load data dari localStorage
             const dataLoaded = loadFromLocalStorage();
             if (!dataLoaded) {
                 initializeYearSchedule();
                 saveToLocalStorage();
             }
             
+            // Load pending changes
+            loadPendingChanges();
+            
             // Render UI
             renderSchedule();
             
-            // Event Listeners
+            // ==================== EVENT LISTENERS ====================
+            
+            // Navigasi bulan
             document.getElementById('prev-month').addEventListener('click', () => {
                 if (currentMonth > 1) {
                     currentMonth--;
@@ -1150,7 +1495,7 @@ async function saveToGoogleSheets() {
                     clearSelections();
                     renderSchedule();
                 } else {
-                    alert("Tidak bisa navigasi ke Januari 2026. Jadwal hanya tersedia dari Februari hingga Desember 2026.");
+                    showNotification("Tidak bisa navigasi ke Januari 2026. Jadwal hanya tersedia dari Februari hingga Desember 2026.", "warning");
                 }
             });
             
@@ -1162,15 +1507,17 @@ async function saveToGoogleSheets() {
                     clearSelections();
                     renderSchedule();
                 } else {
-                    alert("Tidak bisa navigasi ke Januari 2027. Jadwal hanya tersedia untuk tahun 2026.");
+                    showNotification("Tidak bisa navigasi ke Januari 2027. Jadwal hanya tersedia untuk tahun 2026.", "warning");
                 }
             });
             
+            // Update shift
             document.getElementById('update-shift').addEventListener('click', showUpdateModal);
             
+            // Tukar shift
             document.getElementById('swap-shift').addEventListener('click', () => {
                 if (!selectedShift) {
-                    alert("Pilih shift pertama yang ingin ditukar!");
+                    showNotification("Pilih shift pertama yang ingin ditukar!", "warning");
                     return;
                 }
                 
@@ -1184,9 +1531,10 @@ async function saveToGoogleSheets() {
                 }
                 
                 updateSelectionInfo();
-                alert(`Pilih shift kedua untuk ditukar dengan shift ${employees[firstSwapShift.employee].name} tanggal ${firstSwapShift.day}`);
+                showNotification(`Pilih shift kedua untuk ditukar dengan shift ${employees[firstSwapShift.employee].name} tanggal ${firstSwapShift.day}`, "info");
             });
             
+            // Reset seleksi
             document.getElementById('reset-selection').addEventListener('click', () => {
                 selectedShift = null;
                 firstSwapShift = null;
@@ -1194,21 +1542,43 @@ async function saveToGoogleSheets() {
                 updateSelectionInfo();
             });
             
+            // Generate ulang jadwal
             document.getElementById('generate-year').addEventListener('click', () => {
                 if (confirm("Generate ulang jadwal? Semua perubahan akan hilang.")) {
                     scheduleData = {};
+                    pendingChanges = [];
+                    localStorage.removeItem('pendingChanges');
+                    updateSyncStatus();
+                    
                     initializeYearSchedule();
                     saveToLocalStorage();
                     renderSchedule();
-                    alert("Jadwal telah digenerate ulang!");
+                    
+                    showNotification("Jadwal telah digenerate ulang!", "success");
                 }
             });
+            
+            // Sync perubahan
+            document.getElementById('sync-changes').addEventListener('click', syncPendingChanges);
             
             // Google Sheets buttons
             document.getElementById('save-to-sheets').addEventListener('click', saveToGoogleSheets);
             document.getElementById('load-from-sheets').addEventListener('click', loadFromGoogleSheets);
             
-            // Modal events
+            // Settings button
+            const settingsBtn = document.createElement('button');
+            settingsBtn.className = 'btn btn-secondary';
+            settingsBtn.id = 'settings-btn';
+            settingsBtn.innerHTML = '<i class="fas fa-cog"></i> Pengaturan';
+            settingsBtn.style.padding = '8px 16px';
+            settingsBtn.style.fontSize = '0.9rem';
+            settingsBtn.addEventListener('click', showSettingsModal);
+            
+            // Tambahkan tombol settings ke storage-info
+            const storageInfo = document.querySelector('.storage-info');
+            storageInfo.appendChild(settingsBtn);
+            
+            // Modal update shift events
             document.getElementById('cancel-update').addEventListener('click', () => {
                 document.getElementById('update-modal').style.display = 'none';
                 document.querySelectorAll('.shift-option').forEach(opt => {
@@ -1221,7 +1591,7 @@ async function saveToGoogleSheets() {
             document.getElementById('confirm-update').addEventListener('click', () => {
                 const selectedOption = document.querySelector('.shift-option[data-selected="true"]');
                 if (!selectedOption) {
-                    alert("Pilih jenis shift terlebih dahulu!");
+                    showNotification("Pilih jenis shift terlebih dahulu!", "warning");
                     return;
                 }
                 
@@ -1234,15 +1604,15 @@ async function saveToGoogleSheets() {
                     opt.style.opacity = '1';
                     delete opt.dataset.selected;
                 });
-                
-                alert("Shift berhasil diupdate!");
             });
             
+            // Shift options in modal
             document.querySelectorAll('.shift-option').forEach(option => {
                 option.addEventListener('click', () => {
                     document.querySelectorAll('.shift-option').forEach(opt => {
                         opt.style.border = '2px solid';
                         opt.style.opacity = '1';
+                        delete opt.dataset.selected;
                     });
                     
                     option.style.border = '3px solid #333';
@@ -1251,6 +1621,7 @@ async function saveToGoogleSheets() {
                 });
             });
             
+            // Close modals when clicking outside
             document.getElementById('update-modal').addEventListener('click', (e) => {
                 if (e.target.id === 'update-modal') {
                     document.getElementById('update-modal').style.display = 'none';
@@ -1261,8 +1632,36 @@ async function saveToGoogleSheets() {
                     });
                 }
             });
+            
+            document.getElementById('settings-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'settings-modal') {
+                    document.getElementById('settings-modal').style.display = 'none';
+                }
+            });
+            
+            // Settings modal events
+            document.getElementById('cancel-settings').addEventListener('click', () => {
+                document.getElementById('settings-modal').style.display = 'none';
+            });
+            
+            document.getElementById('test-connection').addEventListener('click', testConnection);
+            
+            document.getElementById('save-settings').addEventListener('click', saveSettings);
+            
+            // Auto-save ketika user keluar dari halaman
+            window.addEventListener('beforeunload', () => {
+                saveToLocalStorage();
+            });
+            
+            // Auto-save setiap 30 detik
+            setInterval(() => {
+                saveToLocalStorage();
+            }, 30000);
+            
+            console.log('Aplikasi Jadwal Shift 2026 telah dimuat');
         }
         
+        // Inisialisasi aplikasi
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
