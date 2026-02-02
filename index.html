@@ -1080,7 +1080,51 @@
             clearSelections();
             updateSelectionInfo();
         }
+//=====cors proxy========
+
+        // Tambahkan di bagian atas script
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+// atau https://api.codetabs.com/v1/proxy?quest=
+
+// Modifikasi fungsi saveToGoogleSheets
+async function saveToGoogleSheets() {
+    showLoading('Menyimpan ke Google Sheets...');
+    
+    try {
+        const proxyUrl = CORS_PROXY + GAS_WEB_APP_URL;
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                action: 'saveAll',
+                scheduleData: scheduleData
+            })
+        });
         
+        const result = await response.json();
+        
+        if (result.success) {
+            localStorage.setItem('lastSavedToSheets', new Date().toISOString());
+            hideLoading();
+            alert('✅ Data berhasil disimpan ke Google Sheets!');
+            return true;
+        } else {
+            throw new Error(result.message || 'Gagal menyimpan');
+        }
+    } catch (error) {
+        console.error('Gagal menyimpan ke Google Sheets:', error);
+        hideLoading();
+        
+        // Fallback ke localStorage
+        saveToLocalStorage();
+        
+        alert(`❌ Gagal menyimpan ke Google Sheets:\n${error.message}\n\nData telah disimpan di localStorage.`);
+        return false;
+    }
+}
         // ==================== INISIALISASI ====================
         
         function initApp() {
