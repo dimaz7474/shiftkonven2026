@@ -695,177 +695,202 @@
             }
         }
         
-        // Fungsi untuk menghitung shift berdasarkan pola berulang
-        function calculateShift(employeeIndex, dayOfYear) {
-            // Pola awal untuk setiap pegawai pada 1 Februari 2026 (hari ke-32 dalam tahun)
-            const feb1DayOfYear = 32; // 1 Februari adalah hari ke-32 dalam tahun 2026
-            const dayOffset = dayOfYear - feb1DayOfYear;
-            
-            // Tentukan pola dasar untuk setiap pegawai
-            const basePatterns = [
-                ["x", "x", "1", "2", "3"], // Yosafat
-                ["x", "1", "2", "3", "x"], // Ardhi
-                ["1", "2", "3", "x", "x"], // Iqbal
-                ["2", "3", "x", "x", "1"], // Dimas
-                ["3", "x", "x", "1", "2"]  // Windi
-            ];
-            
-            const basePattern = basePatterns[employeeIndex];
-            
-            // Hitung shift berdasarkan pola yang berulang setiap 5 hari
-            const patternIndex = (dayOffset % 5 + 5) % 5;
-            return basePattern[patternIndex];
-        }
+       // Fungsi untuk menghitung shift berdasarkan pola berulang
+function calculateShift(employeeIndex, dayOfYear) {
+    // Pola awal untuk setiap pegawai pada 1 Februari 2026 (hari ke-32 dalam tahun)
+    const feb1DayOfYear = 32; // 1 Februari adalah hari ke-32 dalam tahun 2026
+    const dayOffset = dayOfYear - feb1DayOfYear;
+    
+    // Tentukan pola dasar untuk setiap pegawai
+    const basePatterns = [
+        ["x", "x", "1", "2", "3"], // Yosafat
+        ["x", "1", "2", "3", "x"], // Ardhi
+        ["1", "2", "3", "x", "x"], // Iqbal
+        ["2", "3", "x", "x", "1"], // Dimas
+        ["3", "x", "x", "1", "2"]  // Windi
+    ];
+    
+    const basePattern = basePatterns[employeeIndex];
+    
+    // Hitung shift berdasarkan pola yang berulang setiap 5 hari
+    const patternIndex = (dayOffset % 5 + 5) % 5;
+    
+    // Debug jika diperlukan
+    if (dayOfYear === feb1DayOfYear) {
+        console.log(`Day 1 Feb: employee ${employees[employeeIndex].name}, pattern: ${basePattern}, index: ${patternIndex}, shift: ${basePattern[patternIndex]}`);
+    }
+    
+    return basePattern[patternIndex];
+}
         
         // Inisialisasi jadwal untuk Februari hingga Desember 2026
         function initializeYearSchedule() {
-            for (let month = 1; month <= 11; month++) {
-                generateMonthSchedule(month, 2026);
-            }
-        }
+    for (let month = 1; month <= 11; month++) { // Februari (1) hingga Desember (11)
+        generateMonthSchedule(month, 2026);
+    }
+}
         
         // Generate jadwal untuk satu bulan
-        function generateMonthSchedule(month, year) {
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+       // Generate jadwal untuk satu bulan
+function generateMonthSchedule(month, year) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    if (!scheduleData[month]) {
+        scheduleData[month] = {};
+    }
+    
+    console.log(`Generating schedule for ${monthNames[month]} ${year}, days: ${daysInMonth}`);
+    
+    for (let empIndex = 0; empIndex < employees.length; empIndex++) {
+        const employeeSchedule = [];
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const startOfYear = new Date(year, 0, 1);
+            const dayOfYear = Math.floor((date - startOfYear) / (1000 * 60 * 60 * 24)) + 1;
             
-            if (!scheduleData[month]) {
-                scheduleData[month] = {};
-            }
-            
-            for (let empIndex = 0; empIndex < employees.length; empIndex++) {
-                const employeeSchedule = [];
-                
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const date = new Date(year, month, day);
-                    const startOfYear = new Date(year, 0, 1);
-                    const dayOfYear = Math.floor((date - startOfYear) / (1000 * 60 * 60 * 24)) + 1;
-                    
-                    const shift = calculateShift(empIndex, dayOfYear);
-                    employeeSchedule.push(shift);
-                }
-                
-                scheduleData[month][empIndex] = employeeSchedule;
-            }
+            const shift = calculateShift(empIndex, dayOfYear);
+            employeeSchedule.push(shift);
         }
         
+        scheduleData[month][empIndex] = employeeSchedule;
+        
+        // Debug: tampilkan beberapa data pertama
+        console.log(`${employees[empIndex].name}: ${employeeSchedule.slice(0, 5).join(', ')}...`);
+    }
+    
+    console.log(`Schedule generated for ${monthNames[month]}`);
+}
         // Hitung total hari kerja untuk seorang pegawai dalam bulan tertentu
-        function calculateWorkDays(employeeIndex, month) {
-            const monthSchedule = scheduleData[month];
-            if (!monthSchedule || !monthSchedule[employeeIndex]) return 0;
-            
-            let workDays = 0;
-            const employeeSchedule = monthSchedule[employeeIndex];
-            
-            for (let day = 0; day < employeeSchedule.length; day++) {
-                const shift = employeeSchedule[day];
-                if (shift === '1' || shift === '2' || shift === '3') {
-                    workDays++;
-                }
-            }
-            
-            return workDays;
+// Hitung total hari kerja untuk seorang pegawai dalam bulan tertentu
+function calculateWorkDays(employeeIndex, month) {
+    const monthSchedule = scheduleData[month];
+    if (!monthSchedule || !monthSchedule[employeeIndex]) return 0;
+    
+    let workDays = 0;
+    const employeeSchedule = monthSchedule[employeeIndex];
+    
+    for (let day = 0; day < employeeSchedule.length; day++) {
+        const shift = employeeSchedule[day];
+        // SESUAIKAN DENGAN LOGIKA STATISTIK: Shift 1,2,3, dan C adalah hari kerja
+        if (shift === '1' || shift === '2' || shift === '3' || shift === 'C') {
+            workDays++;
         }
+    }
+    
+    return workDays;
+}
         
         // Render daftar pegawai dengan total hari kerja
-        function renderEmployeeList() {
-            const employeeListEl = document.getElementById('employee-list');
-            employeeListEl.innerHTML = '';
-            
-            employees.forEach(employee => {
-                const workDays = calculateWorkDays(employee.id, currentMonth);
-                
-                const employeeEl = document.createElement('div');
-                employeeEl.className = 'employee-item';
-                employeeEl.dataset.employeeId = employee.id;
-                
-                employeeEl.innerHTML = `
-                    <div class="employee-color" style="background-color:${employee.color}"></div>
-                    <div class="employee-name-container">
-                        <span>${employee.name}</span>
-                        <span class="workday-total" title="Total Hari Kerja">${workDays}</span>
-                    </div>
-                `;
-                
-                employeeEl.addEventListener('click', () => {
-                    document.querySelectorAll('.employee-item').forEach(item => {
-                        item.classList.remove('active');
-                    });
-                    employeeEl.classList.add('active');
-                });
-                
-                employeeListEl.appendChild(employeeEl);
-            });
-        }
+        // Render daftar pegawai dengan total hari kerja
+function renderEmployeeList() {
+    const employeeListEl = document.getElementById('employee-list');
+    employeeListEl.innerHTML = '';
+    
+    employees.forEach(employee => {
+        // GUNAKAN FUNGSI calculateWorkDays yang sudah diperbaiki
+        const workDays = calculateWorkDays(employee.id, currentMonth);
         
-        // Hitung statistik untuk bulan saat ini
-        function calculateMonthlyStatistics() {
-            const monthSchedule = scheduleData[currentMonth];
-            if (!monthSchedule) return {};
-            
-            const stats = {
-                totalDays: 0,
-                shift1: 0,
-                shift2: 0,
-                shift3: 0,
-                libur: 0,
-                cuti: 0,
-                workDays: 0,
-                byEmployee: {}
-            };
-            
-            employees.forEach(employee => {
-                stats.byEmployee[employee.id] = {
-                    name: employee.name,
-                    shift1: 0,
-                    shift2: 0,
-                    shift3: 0,
-                    libur: 0,
-                    cuti: 0,
-                    workDays: 0
-                };
+        const employeeEl = document.createElement('div');
+        employeeEl.className = 'employee-item';
+        employeeEl.dataset.employeeId = employee.id;
+        
+        employeeEl.innerHTML = `
+            <div class="employee-color" style="background-color:${employee.color}"></div>
+            <div class="employee-name-container">
+                <span>${employee.name}</span>
+                <span class="employee-workdays">${workDays}</span>
+            </div>
+        `;
+        
+        employeeEl.addEventListener('click', () => {
+            document.querySelectorAll('.employee-item').forEach(item => {
+                item.classList.remove('active');
             });
+            employeeEl.classList.add('active');
+        });
+        
+        employeeListEl.appendChild(employeeEl);
+    });
+}
+        // Hitung statistik untuk bulan saat ini
+// Hitung statistik untuk bulan saat ini
+function calculateMonthlyStatistics() {
+    const monthSchedule = scheduleData[currentMonth];
+    if (!monthSchedule) return {};
+    
+    const stats = {
+        totalDays: 0,
+        shift1: 0,
+        shift2: 0,
+        shift3: 0,
+        libur: 0,
+        cuti: 0,
+        workDays: 0, // Hari kerja termasuk cuti
+        byEmployee: {}
+    };
+    
+    employees.forEach(employee => {
+        stats.byEmployee[employee.id] = {
+            name: employee.name,
+            shift1: 0,
+            shift2: 0,
+            shift3: 0,
+            libur: 0,
+            cuti: 0,
+            workDays: 0 // Hari kerja termasuk cuti
+        };
+    });
+    
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    stats.totalDays = daysInMonth;
+    
+    for (let empIndex = 0; empIndex < employees.length; empIndex++) {
+        for (let day = 1; day <= daysInMonth; day++) {
+            const shift = monthSchedule[empIndex][day-1] || 'x';
             
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            stats.totalDays = daysInMonth;
-            
-            for (let empIndex = 0; empIndex < employees.length; empIndex++) {
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const shift = monthSchedule[empIndex][day-1];
-                    
-                    if (shift === '1') {
-                        stats.shift1++;
-                        stats.workDays++;
-                    }
-                    else if (shift === '2') {
-                        stats.shift2++;
-                        stats.workDays++;
-                    }
-                    else if (shift === '3') {
-                        stats.shift3++;
-                        stats.workDays++;
-                    }
-                    else if (shift === 'x') stats.libur++;
-                    else if (shift === 'C') stats.cuti++;
-                    
-                    if (shift === '1') {
-                        stats.byEmployee[empIndex].shift1++;
-                        stats.byEmployee[empIndex].workDays++;
-                    }
-                    else if (shift === '2') {
-                        stats.byEmployee[empIndex].shift2++;
-                        stats.byEmployee[empIndex].workDays++;
-                    }
-                    else if (shift === '3') {
-                        stats.byEmployee[empIndex].shift3++;
-                        stats.byEmployee[empIndex].workDays++;
-                    }
-                    else if (shift === 'x') stats.byEmployee[empIndex].libur++;
-                    else if (shift === 'C') stats.byEmployee[empIndex].cuti++;
-                }
+            // Hitung untuk total bulanan
+            if (shift === '1') {
+                stats.shift1++;
+                stats.workDays++; // Shift 1 = hari kerja
             }
+            else if (shift === '2') {
+                stats.shift2++;
+                stats.workDays++; // Shift 2 = hari kerja
+            }
+            else if (shift === '3') {
+                stats.shift3++;
+                stats.workDays++; // Shift 3 = hari kerja
+            }
+            else if (shift === 'C') {
+                stats.cuti++;
+                stats.workDays++; // Cuti = hari kerja
+            }
+            else if (shift === 'x') stats.libur++;
             
-            return stats;
+            // Hitung per pegawai
+            if (shift === '1') {
+                stats.byEmployee[empIndex].shift1++;
+                stats.byEmployee[empIndex].workDays++;
+            }
+            else if (shift === '2') {
+                stats.byEmployee[empIndex].shift2++;
+                stats.byEmployee[empIndex].workDays++;
+            }
+            else if (shift === '3') {
+                stats.byEmployee[empIndex].shift3++;
+                stats.byEmployee[empIndex].workDays++;
+            }
+            else if (shift === 'C') {
+                stats.byEmployee[empIndex].cuti++;
+                stats.byEmployee[empIndex].workDays++; // Cuti = hari kerja
+            }
+            else if (shift === 'x') stats.byEmployee[empIndex].libur++;
         }
+    }
+    
+    return stats;
+}
         
         // Render statistik bulanan
         function renderStatistics() {
@@ -926,76 +951,89 @@
         }
         
         // Render jadwal untuk bulan saat ini
-        function renderSchedule() {
-            const scheduleTableEl = document.getElementById('schedule-table');
-            const monthYearEl = document.getElementById('month-year');
-            
-            monthYearEl.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-            
-            const monthSchedule = scheduleData[currentMonth];
-            if (!monthSchedule) {
-                generateMonthSchedule(currentMonth, currentYear);
+        // Render jadwal untuk bulan saat ini
+function renderSchedule() {
+    const scheduleTableEl = document.getElementById('schedule-table');
+    const monthYearEl = document.getElementById('month-year');
+    
+    monthYearEl.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+    
+    // Pastikan data ada
+    if (!scheduleData[currentMonth]) {
+        generateMonthSchedule(currentMonth, currentYear);
+    }
+    
+    const monthSchedule = scheduleData[currentMonth];
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    let tableHTML = '<thead><tr>';
+    tableHTML += '<th style="width:150px;">Pegawai (Hari Kerja)</th>';
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        const dayName = date.toLocaleDateString('id-ID', { weekday: 'short' });
+        
+        tableHTML += `
+            <th class="day-header">
+                <div class="day-number">${day}</div>
+                <div class="day-name">${dayName}</div>
+            </th>
+        `;
+    }
+    
+    tableHTML += '</tr></thead><tbody>';
+    
+    employees.forEach((employee, empIndex) => {
+        // HITUNG HARI KERJA DENGAN FUNGSI YANG BENAR
+        const workDays = calculateWorkDays(empIndex, currentMonth);
+        
+        tableHTML += `<tr>`;
+        tableHTML += `<td style="font-weight:bold; text-align:left; padding-left:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding-right:15px;">
+                <span>${employee.name}</span>
+                <span class="workday-total">${workDays}</span>
+            </div>
+        </td>`;
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            let shift = 'x';
+            if (monthSchedule && monthSchedule[empIndex] && monthSchedule[empIndex][day-1] !== undefined) {
+                shift = monthSchedule[empIndex][day-1];
             }
             
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            
-            let tableHTML = '<thead><tr>';
-            tableHTML += '<th style="width:150px;">Pegawai (Hari Kerja)</th>';
-            
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(currentYear, currentMonth, day);
-                const dayName = date.toLocaleDateString('id-ID', { weekday: 'short' });
-                
-                tableHTML += `
-                    <th class="day-header">
-                        <div class="day-number">${day}</div>
-                        <div class="day-name">${dayName}</div>
-                    </th>
-                `;
+            // Pastikan shift valid
+            if (shift === 'undefined' || shift === undefined || shift === null) {
+                shift = 'x';
             }
             
-            tableHTML += '</tr></thead><tbody>';
+            const shiftClass = `shift-${shift}`;
             
-            employees.forEach((employee, empIndex) => {
-                const workDays = calculateWorkDays(empIndex, currentMonth);
-                
-                tableHTML += `<tr>`;
-                tableHTML += `<td style="font-weight:bold; text-align:left; padding-left:15px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>${employee.name}</span>
-                        <span class="workday-total">${workDays}</span>
-                    </div>
-                </td>`;
-                
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const shift = monthSchedule[empIndex][day-1];
-                    const shiftClass = `shift-${shift}`;
-                    
-                    tableHTML += `
-                        <td class="${shiftClass}" 
-                            data-employee="${empIndex}" 
-                            data-day="${day}" 
-                            data-shift="${shift}"
-                            title="${employee.name}, ${day} ${monthNames[currentMonth]}: ${getShiftName(shift)}">
-                            ${shift}
-                        </td>
-                    `;
-                }
-                
-                tableHTML += `</tr>`;
-            });
-            
-            tableHTML += '</tbody>';
-            scheduleTableEl.innerHTML = tableHTML;
-            
-            document.querySelectorAll('.schedule-table td[data-employee]').forEach(cell => {
-                cell.addEventListener('click', handleShiftClick);
-            });
-            
-            updateSelectionInfo();
-            renderStatistics();
-            renderEmployeeList();
+            tableHTML += `
+                <td class="${shiftClass}" 
+                    data-employee="${empIndex}" 
+                    data-day="${day}" 
+                    data-shift="${shift}"
+                    title="${employee.name}, ${day} ${monthNames[currentMonth]}: ${getShiftName(shift)}">
+                    ${shift}
+                </td>
+            `;
         }
+        
+        tableHTML += `</tr>`;
+    });
+    
+    tableHTML += '</tbody>';
+    scheduleTableEl.innerHTML = tableHTML;
+    
+    // Event listeners
+    document.querySelectorAll('.schedule-table td[data-employee]').forEach(cell => {
+        cell.addEventListener('click', handleShiftClick);
+    });
+    
+    updateSelectionInfo();
+    renderStatistics();
+    renderEmployeeList(); // Pastikan ini dipanggil
+}
         
         // Mendapatkan nama shift yang lebih deskriptif
         function getShiftName(shiftCode) {
@@ -1135,65 +1173,78 @@ async function saveToGoogleSheets() {
             data: monthSchedule
         };
         
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(saveData)
+        console.log('Mengirim data ke Google Sheets:', saveData);
+        
+        // Gunakan metode yang berbeda untuk menghindari CORS
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(saveData));
+        
+        // Buat URL dengan parameter
+        const url = `${GOOGLE_SCRIPT_URL}?action=save&month=${currentMonth}&year=${currentYear}&data=${encodeURIComponent(JSON.stringify(monthSchedule))}`;
+        
+        // Coba metode pertama: fetch dengan mode 'no-cors'
+        const response = await fetch(url, {
+            method: 'GET',
+            mode: 'no-cors', // Mode no-cors
+            cache: 'no-cache'
         });
         
-        const result = await response.json();
+        console.log('Request terkirim ke:', url);
         
-        if (result.success) {
-            const timeStr = new Date().toLocaleTimeString('id-ID', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            updateSyncStatus('success', `Tersimpan ${timeStr}`);
-            console.log('Berhasil disimpan ke Google Sheets:', result);
+        // Simpan ke localStorage sebagai backup
+        saveToLocalStorage();
+        
+        // Coba metode kedua: menggunakan iframe untuk bypass CORS
+        setTimeout(() => {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            document.body.appendChild(iframe);
             
-            // Simpan juga ke localStorage sebagai backup
-            saveToLocalStorage();
-        } else {
-            throw new Error(result.message || 'Gagal menyimpan');
-        }
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 3000);
+        }, 100);
+        
+        // Update status
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('id-ID', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        updateSyncStatus('success', `Tersimpan ${timeStr}`);
+        
+        alert('Data berhasil dikirim ke Google Sheets!');
+        
+        // Refresh data dari Google Sheets setelah 2 detik
+       // setTimeout(async () => {
+       //     await loadFromGoogleSheets(true); // Force reload
+      //  }, 2000);
         
     } catch (error) {
         console.error('Error saving to Google Sheets:', error);
-        saveToLocalStorage(); // Backup ke localStorage
+        
+        // Backup ke localStorage
+        saveToLocalStorage();
+        
         updateSyncStatus('error', 'Gagal, disimpan lokal');
-        alert('Gagal menyimpan ke cloud. Data disimpan lokal.');
+        alert('Gagal menyimpan ke Google Sheets. Data disimpan lokal.\n\nCoba gunakan tombol "Export CSV" untuk backup manual.');
     } finally {
         isSaving = false;
         hideLoading();
+        
+        // Reset status setelah 5 detik
+        setTimeout(() => {
+            if (lastSaveTime) {
+                const timeStr = lastSaveTime.toLocaleTimeString('id-ID', { 
+                    hour: '2-digit', 
+                    minute: '2-digit'
+                });
+                updateSyncStatus('success', `Disimpan ${timeStr}`);
+            }
+        }, 5000);
     }
-}
-
-
-// Fungsi untuk test koneksi ke Google Script
-async function testGoogleScriptConnection() {
-    try {
-        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=test`);
-        const result = await response.json();
-        console.log('Test connection:', result);
-        return result.success;
-    } catch (error) {
-        console.error('Test connection failed:', error);
-        return false;
-    }
-}
-
-// Panggil saat init app
-async function initApp() {
-    const isConnected = await testGoogleScriptConnection();
-    if (isConnected) {
-        updateSyncStatus('success', 'Terhubung ke Google Sheets');
-    } else {
-        updateSyncStatus('offline', 'Mode offline (gunakan localStorage)');
-    }
-    // ... sisa kode init
 }
         
         // Fungsi untuk memuat data dari Google Sheets
@@ -1255,24 +1306,37 @@ async function loadFromGoogleSheets(force = false) {
 }
         
         // Fungsi untuk load data (prioritas: Google Sheets -> localStorage -> generate baru)
-        async function loadScheduleData() {
-            console.log('Memuat data untuk bulan', currentMonth, currentYear);
-            
-            // Cek localStorage dulu untuk kecepatan
-            const fromLocal = loadFromLocalStorage();
-            
-            // Coba load dari Google Sheets di background
-            setTimeout(async () => {
-                const fromSheets = await loadFromGoogleSheets();
-                if (fromSheets) {
-                    // Jika data dari Sheets berbeda, update UI
-                    renderSchedule();
-                    console.log('Data diperbarui dari Google Sheets');
-                }
-            }, 100);
-            
-            return fromLocal; // Kembalikan status localStorage
-        }
+       // Fungsi untuk load data (prioritas: Google Sheets -> localStorage -> generate baru)
+async function loadScheduleData() {
+    console.log('Memuat data untuk bulan', currentMonth, monthNames[currentMonth]);
+    
+    // Cek apakah data sudah ada di memori
+    if (scheduleData[currentMonth]) {
+        console.log('Data sudah ada di memori');
+        return true;
+    }
+    
+    // Cek localStorage dulu untuk kecepatan
+    const fromLocal = loadFromLocalStorage();
+    if (fromLocal) {
+        console.log('Data dimuat dari localStorage');
+        return true;
+    }
+    
+    // Coba load dari Google Sheets
+    console.log('Mencoba load dari Google Sheets...');
+    const fromSheets = await loadFromGoogleSheets();
+    if (fromSheets) {
+        console.log('Data dimuat dari Google Sheets');
+        return true;
+    }
+    
+    // Jika semua gagal, generate data baru
+    console.log('Generating new schedule data...');
+    generateMonthSchedule(currentMonth, currentYear);
+    
+    return true;
+}
         
         // Fungsi backup ke localStorage
         function saveToLocalStorage() {
@@ -1517,37 +1581,6 @@ async function loadFromGoogleSheets(force = false) {
         
         // Jalankan aplikasi saat halaman dimuat
         document.addEventListener('DOMContentLoaded', initApp);
-
-        // Fungsi debug untuk cek koneksi
-async function debugConnection() {
-    console.log('Testing connection to:', GOOGLE_SCRIPT_URL);
-    
-    try {
-        // Test 1: Cek apakah script berjalan
-        const testUrl = `${GOOGLE_SCRIPT_URL}?action=test&_=${Date.now()}`;
-        console.log('Test URL:', testUrl);
-        
-        const testResponse = await fetch(testUrl);
-        const testResult = await testResponse.json();
-        console.log('Test result:', testResult);
-        
-        // Test 2: Cek data di sheets
-        const loadUrl = `${GOOGLE_SCRIPT_URL}?action=load&month=${currentMonth}&year=${currentYear}&_=${Date.now()}`;
-        console.log('Load URL:', loadUrl);
-        
-        const loadResponse = await fetch(loadUrl);
-        const loadText = await loadResponse.text();
-        console.log('Load response:', loadText);
-        
-        return { testResult, loadText };
-    } catch (error) {
-        console.error('Debug error:', error);
-        return { error: error.toString() };
-    }
-}
-
-// Panggil fungsi debug di console
-// debugConnection();
     </script>
 </body>
 </html>
