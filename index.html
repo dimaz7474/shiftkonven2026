@@ -1256,52 +1256,51 @@ async function loadFromGoogleSheets(force = false) {
     updateSyncStatus('loading', 'Memuat...');
     
     try {
-        console.log('Memuat data dari Google Sheets untuk bulan', currentMonth);
-        
-        // Gunakan URL dengan timestamp untuk menghindari cache
         const timestamp = new Date().getTime();
         const url = `${GOOGLE_SCRIPT_URL}?action=load&month=${currentMonth}&year=${currentYear}&_=${timestamp}`;
         
-        console.log('URL load:', url);
-        
         const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
-        if (response.ok) {
-            const text = await response.text();
-            console.log('Raw response:', text);
-            
-            try {
-                const result = JSON.parse(text);
-                console.log('Parsed response:', result);
-                
-                if (result.success && result.data) {
-                    scheduleData[currentMonth] = result.data;
-                    console.log('Data berhasil dimuat dari Google Sheets');
-                    updateSyncStatus('success', 'Data terbaru dimuat');
-                    
-                    // Render ulang jika ada perubahan
-                    renderSchedule();
-                    return true;
-                } else {
-                    console.log('Tidak ada data di Google Sheets:', result.message);
-                    updateSyncStatus('offline', 'Tidak ada data di cloud');
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            throw new Error('Respon bukan JSON valid');
+        }
+
+        // === VALIDASI DATA ===
+        if (result.success && result.data && typeof result.data === 'object') {
+            // Periksa apakah data memiliki properti untuk setiap employee (0..4)
+            let valid = true;
+            for (let i = 0; i < employees.length; i++) {
+                if (!Array.isArray(result.data[i])) {
+                    valid = false;
+                    break;
                 }
-            } catch (parseError) {
-                console.error('Error parsing JSON:', parseError);
-                console.log('Response text:', text);
-                updateSyncStatus('error', 'Format data salah');
+            }
+            
+            if (valid) {
+                scheduleData[currentMonth] = result.data;
+                console.log('Data berhasil dimuat dari Google Sheets');
+                updateSyncStatus('success', 'Data terbaru dimuat');
+                renderSchedule();
+                return true;
+            } else {
+                throw new Error('Format data tidak lengkap/salah');
             }
         } else {
-            console.error('Response tidak OK:', response.status, response.statusText);
-            updateSyncStatus('error', `Error ${response.status}`);
+            throw new Error(result.message || 'Tidak ada data di cloud');
         }
+        
     } catch (error) {
         console.error('Error loading from Google Sheets:', error);
-        updateSyncStatus('offline', 'Mode offline');
+        updateSyncStatus('offline', 'Gagal memuat: ' + error.message);
+        alert('Gagal memuat dari Google Sheets. Data lokal tetap digunakan.\n\n' + error.message);
     } finally {
         hideLoading();
     }
-    
     return false;
 }
         
